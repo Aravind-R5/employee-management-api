@@ -15,7 +15,7 @@ A clean REST API built using **FastAPI** and **Pydantic**, managed with **uv**, 
 
 ```bash
 # Clone the repository
-git clone <YOUR_GITHUB_REPO_URL>
+git clone https://github.com/Aravind-R5/employee-management-api.git
 cd employee-management-api
 
 # Create virtual environment and install dependencies
