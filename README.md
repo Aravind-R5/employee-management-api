@@ -22,3 +22,13 @@ cd employee-management-api
 uv venv --python 3.12
 uv pip install -r requirements.txt
 ```
+
+### 2. Running the Server
+
+```bash
+# Run with hot-reload (development)
+uv run uvicorn app.main:app --reload
+
+# Run without hot-reload (production)
+uv run uvicorn app.main:app --host [IP_ADDRESS] --port 8000
+```
