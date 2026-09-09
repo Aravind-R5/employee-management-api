@@ -1,7 +1,10 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 from fastapi import HTTPException, status
 from app.schemas import EmployeeCreate, EmployeeUpdate
+
+# Indian Standard Time (UTC+5:30)
+IST = timezone(timedelta(hours=5, minutes=30))
 
 # Temporary in-memory list storage
 employees_db: List[dict] = []
@@ -28,7 +31,7 @@ def create_employee(data: EmployeeCreate) -> dict:
         "location": data.location,
         "work_mode": data.work_mode,
         "is_active": True,
-        "created_at": datetime.now(timezone.utc)
+        "created_at": datetime.now(IST)
     }
     employees_db.append(new_employee)
     id_counter += 1
