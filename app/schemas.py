@@ -1,14 +1,22 @@
 from datetime import datetime
 from typing import Literal
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 class EmployeeBase(BaseModel):
-    name: str = Field(..., min_length=1, description="Full name of the employee")
+    name: str = Field(..., description="Full name of the employee")
     email: EmailStr = Field(..., description="Valid corporate email address")
-    department: str = Field(..., min_length=1, description="Department name")
-    primary_skill: str = Field(..., min_length=1, description="Primary technical skill")
-    location: str = Field(..., min_length=1, description="Current working location")
+    department: str = Field(..., description="Department name")
+    primary_skill: str = Field(..., description="Primary technical skill")
+    location: str = Field(..., description="Current working location")
     work_mode: Literal["WFH", "WFO"] = Field(..., description="Accepted values: WFH or WFO")
+
+    @field_validator("name", "department", "primary_skill", "location")
+    @classmethod
+    def reject_empty_or_whitespace(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("Field cannot be empty or contain only whitespace.")
+        return trimmed
 
 class EmployeeCreate(EmployeeBase):
     pass
