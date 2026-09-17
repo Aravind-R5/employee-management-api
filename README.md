@@ -43,6 +43,10 @@ uv run uvicorn app.main:app --host [IP_ADDRESS] --port 8000
 - Implementing Pydantic validation using `EmailStr` for email syntax verification and `Literal["WFH", "WFO"]` for strict work mode constraints.
 - Enforcing path parameter constraints with `Path(..., gt=0)` to reject non-positive IDs with clear error responses.
 - Managing virtual environments, dependencies, and execution with `uv`.
+- Provisioning a project database in SQL Workbench and connecting it to the application layer.
+- Designing ORM models (`models.py`) and a database connection/session layer (`database.py`) using SQLAlchemy.
+- Refactoring `schemas.py` and `services.py` to move off in-memory storage and operate against a real database, including session-based query, commit, and rollback patterns.
+- Core working principles of SQLAlchemy: engine and session management, and how a request-scoped session is handed off and closed via a dependency.
 
 ### Difficulties Faced
 
@@ -56,3 +60,4 @@ uv run uvicorn app.main:app --host [IP_ADDRESS] --port 8000
 - Email comparison for duplicate checks is treated as case-insensitive.
 - Work mode strictly accepts only `"WFH"` or `"WFO"`.
 - Timestamps (`created_at`) are captured using Indian Standard Time (IST, UTC+5:30).
+- Database schema and tables are provisioned manually via SQL Workbench for this stage, rather than through automated migration tooling.
