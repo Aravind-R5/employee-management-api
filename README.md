@@ -48,6 +48,7 @@ uv run uvicorn app.main:app --host [IP_ADDRESS] --port 8000
 
 - Ensuring the duplicate email check during `PUT` requests allows updating an employee's details without conflicting with their own existing email address.
 - Managing local port re-binding conflicts (`[WinError 10048]`) when restarting the Uvicorn development server.
+- Encountered a connection error during application startup caused by the "@" symbol in the local SQL Workbench password; resolved it using the quote_plus module from the urllib.parse package.
 
 ### Assumptions Made
 
