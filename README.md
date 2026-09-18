@@ -21,15 +21,15 @@ This API manages employee records — create, read, update, and delete — with 
 
 ## ✨ Features
 
-| | |
-|---|---|
-| ✅ | Full CRUD for employee records |
-| ✅ | Persistent MySQL storage via SQLAlchemy ORM |
-| ✅ | Strict Pydantic validation (email format, `WFH`/`WFO` enum, non-blank/whitespace-trimmed fields) |
-| ✅ | Duplicate-email prevention, including on update |
-| ✅ | Clear `404` / `400` / `422` error handling |
-| ✅ | Auto-generated Swagger UI & ReDoc |
-| ✅ | Environment-based configuration via `.env` |
+|     |                                                                                                  |
+| --- | ------------------------------------------------------------------------------------------------ |
+| ✅  | Full CRUD for employee records                                                                   |
+| ✅  | Persistent MySQL storage via SQLAlchemy ORM                                                      |
+| ✅  | Strict Pydantic validation (email format, `WFH`/`WFO` enum, non-blank/whitespace-trimmed fields) |
+| ✅  | Duplicate-email prevention, including on update                                                  |
+| ✅  | Clear `404` / `400` / `422` error handling                                                       |
+| ✅  | Auto-generated Swagger UI & ReDoc                                                                |
+| ✅  | Environment-based configuration via `.env`                                                       |
 
 ---
 
@@ -107,23 +107,23 @@ uv run uvicorn app.main:app --host [IP_ADDRESS] --port 8000
 
 ### 5️⃣ Open the docs
 
-| Docs | URL |
-|---|---|
-| 📘 Swagger UI | `http://127.0.0.1:8000/docs` |
-| 📗 ReDoc | `http://127.0.0.1:8000/redoc` |
+| Docs          | URL                           |
+| ------------- | ----------------------------- |
+| 📘 Swagger UI | `http://127.0.0.1:8000/docs`  |
+| 📗 ReDoc      | `http://127.0.0.1:8000/redoc` |
 
 ---
 
 ## 🔌 API Endpoints
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/health` | Health check |
-| `POST` | `/employees` | Create a new employee |
-| `GET` | `/employees` | List all employees |
-| `GET` | `/employees/{id}` | Get a single employee by ID |
-| `PUT` | `/employees/{id}` | Update an employee |
-| `DELETE` | `/employees/{id}` | Delete an employee |
+| Method   | Endpoint          | Description                 |
+| -------- | ----------------- | --------------------------- |
+| `GET`    | `/health`         | Health check                |
+| `POST`   | `/employees`      | Create a new employee       |
+| `GET`    | `/employees`      | List all employees          |
+| `GET`    | `/employees/{id}` | Get a single employee by ID |
+| `PUT`    | `/employees/{id}` | Update an employee          |
+| `DELETE` | `/employees/{id}` | Delete an employee          |
 
 ---
 
@@ -152,11 +152,3 @@ uv run uvicorn app.main:app --host [IP_ADDRESS] --port 8000
 - Work mode strictly accepts only `"WFH"` or `"WFO"`.
 - Timestamps (`created_at`) are captured using Indian Standard Time (IST, UTC+5:30).
 - Database schema and tables are provisioned manually via SQL Workbench for this stage, rather than through automated migration tooling.
-
----
-
-<div align="center">
-
-Built with ❤️ using FastAPI, SQLAlchemy & MySQL
-
-</div>
