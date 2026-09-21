@@ -32,6 +32,7 @@ class EmployeeResponse(EmployeeBase):
     class Config:
         from_attributes = True
         
+# --- EXTENDED FOR TASK 3 ---
 class PaginatedEmployeeResponse(BaseModel):
     total: int = Field(..., description="Number of matching employees before pagination")
     limit: int = Field(..., description="Requested page size")
