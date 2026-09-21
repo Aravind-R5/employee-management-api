@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Dict, Any, Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -47,8 +47,51 @@ def create_employee(db: Session, data: EmployeeCreate) -> Employee:
             detail="An error occurred while saving to the database."
         )
 
-def get_all_employees(db: Session) -> List[Employee]:
-    return db.query(Employee).all()
+# --- REPLACED & EXTENDED FOR TASK 3 ---
+def get_employees(
+    db: Session,
+    search: Optional[str] = None,
+    department: Optional[str] = None,
+    work_mode: Optional[str] = None,
+    is_active: Optional[bool] = None,
+    limit: int = 10,
+    offset: int = 0
+) -> Dict[str, Any]:
+    # 1. Base query
+    query = db.query(Employee)
+
+    # 2. Case-insensitive partial name search (LIKE %search%)
+    if search:
+        search_cleaned = search.strip()
+        if search_cleaned:
+            query = query.filter(Employee.name.ilike(f"%{search_cleaned}%"))
+
+    # 3. Exact department filter (case-insensitive comparison)
+    if department:
+        dept_cleaned = department.strip()
+        if dept_cleaned:
+            query = query.filter(func.lower(Employee.department) == dept_cleaned.lower())
+
+    # 4. Work mode filter
+    if work_mode:
+        query = query.filter(Employee.work_mode == work_mode)
+
+    # 5. Active status filter
+    if is_active is not None:
+        query = query.filter(Employee.is_active == is_active)
+
+    # 6. Get total count of matching records before applying pagination
+    total_count = query.count()
+
+    # 7. Apply ascending ID ordering and pagination at SQL level
+    records = query.order_by(Employee.id.asc()).offset(offset).limit(limit).all()
+
+    return {
+        "total": total_count,
+        "limit": limit,
+        "offset": offset,
+        "items": records
+    }
 
 def get_employee_by_id(db: Session, emp_id: int) -> Employee:
     employee = db.query(Employee).filter(Employee.id == emp_id).first()
