@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import List, Literal
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 class EmployeeBase(BaseModel):
@@ -31,3 +31,9 @@ class EmployeeResponse(EmployeeBase):
 
     class Config:
         from_attributes = True
+        
+class PaginatedEmployeeResponse(BaseModel):
+    total: int = Field(..., description="Number of matching employees before pagination")
+    limit: int = Field(..., description="Requested page size")
+    offset: int = Field(..., description="Requested number of records to skip")
+    items: List[EmployeeResponse] = Field(..., description="List of employee records")
