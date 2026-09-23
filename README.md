@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🧑‍💼 Employee Management API
+# 💼 Employee Management API 💼
 
 **A clean, production-shaped REST API for managing employee records — built with FastAPI, SQLAlchemy & MySQL.**
 
@@ -27,6 +27,7 @@ This API manages employee records — create, read, update, and delete — with 
 | ✅  | Persistent MySQL storage via SQLAlchemy ORM                                                      |
 | ✅  | Strict Pydantic validation (email format, `WFH`/`WFO` enum, non-blank/whitespace-trimmed fields) |
 | ✅  | Duplicate-email prevention, including on update                                                  |
+| ✅  | Search, filter, and paginate employees — all pushed down to SQLAlchemy queries, not Python       |
 | ✅  | Clear `404` / `400` / `422` error handling                                                       |
 | ✅  | Auto-generated Swagger UI & ReDoc                                                                |
 | ✅  | Environment-based configuration via `.env`                                                       |
@@ -73,23 +74,29 @@ uv pip install -r requirements.txt
 
 ### 2️⃣ Create the MySQL database
 
-Log into MySQL (via CLI, MySQL Workbench, or your tool of choice) and create the database the app will connect to:
+Run the included `Employee.sql` script to create the database (and any seed setup it contains):
+
+```bash
+mysql -u root -p < Employee.sql
+```
+
+Or, if you'd rather create it manually via the MySQL CLI / MySQL Workbench:
 
 ```sql
 CREATE DATABASE employee_db;
 ```
 
-> The application creates its tables automatically on startup (`Base.metadata.create_all`) — you only need to create the empty database itself, not the tables.
+> The application creates its tables automatically on startup (`Base.metadata.create_all`) — `Employee.sql` (or the manual command above) only needs to create the empty database itself.
 
 ### 3️⃣ Configure environment variables
 
 Create a `.env` file in the project root with your database credentials:
 
 ```env
-DB_USER=root
-DB_PASSWORD=your_password_here
-DB_HOST=127.0.0.1
-DB_PORT=3306
+DB_USER=your_db_username
+DB_PASSWORD=your_db_password
+DB_HOST=your_db_host
+DB_PORT=your_db_port
 DB_NAME=employee_db
 ```
 
@@ -102,7 +109,7 @@ DB_NAME=employee_db
 uv run uvicorn app.main:app --reload
 
 # Run without hot-reload (production)
-uv run uvicorn app.main:app --host [IP_ADDRESS] --port 8000
+uv run uvicorn app.main:app --host [IP_ADDRESS] --port [PORT]
 ```
 
 ### 5️⃣ Open the docs
@@ -116,14 +123,70 @@ uv run uvicorn app.main:app --host [IP_ADDRESS] --port 8000
 
 ## 🔌 API Endpoints
 
-| Method   | Endpoint          | Description                 |
-| -------- | ----------------- | --------------------------- |
-| `GET`    | `/health`         | Health check                |
-| `POST`   | `/employees`      | Create a new employee       |
-| `GET`    | `/employees`      | List all employees          |
-| `GET`    | `/employees/{id}` | Get a single employee by ID |
-| `PUT`    | `/employees/{id}` | Update an employee          |
-| `DELETE` | `/employees/{id}` | Delete an employee          |
+| Method   | Endpoint          | Description                                                   |
+| -------- | ----------------- | ------------------------------------------------------------- |
+| `GET`    | `/health`         | Health check                                                  |
+| `POST`   | `/employees`      | Create a new employee                                         |
+| `GET`    | `/employees`      | List employees, with optional search, filters, and pagination |
+| `GET`    | `/employees/{id}` | Get a single employee by ID                                   |
+| `PUT`    | `/employees/{id}` | Update an employee                                            |
+| `DELETE` | `/employees/{id}` | Delete an employee                                            |
+
+---
+
+## 🔎 Search, Filtering & Pagination
+
+`GET /employees` accepts the following optional query parameters, which can be used individually or combined. If none are provided, all employees are returned using the default pagination (`limit=10`, `offset=0`).
+
+| Parameter    | Type      | Default | Description                                                                       |
+| ------------ | --------- | ------- | --------------------------------------------------------------------------------- |
+| `search`     | `string`  | —       | Partial, case-insensitive match on employee name (e.g. `asha` matches `Asha Rao`) |
+| `department` | `string`  | —       | Exact match on department, case-insensitive                                       |
+| `work_mode`  | `string`  | —       | Filter by `WFH` or `WFO` only — any other value is rejected                       |
+| `is_active`  | `boolean` | —       | Filter by `true` or `false`                                                       |
+| `limit`      | `integer` | `10`    | Page size. Must be between `1` and `100`                                          |
+| `offset`     | `integer` | `0`     | Number of records to skip. Must not be negative                                   |
+
+### Response shape
+
+```json
+{
+  "total": 23,
+  "limit": 5,
+  "offset": 0,
+  "items": [{ "id": 1, "name": "Asha Rao", "...": "..." }]
+}
+```
+
+- `total` — number of employees matching the filters, **before** pagination is applied.
+- `items` — the current page of matching employees, ordered by ascending `id`.
+- If nothing matches, the response is still `200 OK` with `total: 0` and `items: []`.
+- If `offset` goes past the end of the matching records, `items` comes back empty while `total` still reflects the correct count.
+
+### Example requests
+
+```
+GET /employees
+→ first 10 employees, no filters applied
+
+GET /employees?search=asha
+→ employees whose name contains "asha" (case-insensitive)
+
+GET /employees?department=Engineering&work_mode=WFH&limit=5&offset=0
+→ first 5 employees in Engineering who work from home
+
+GET /employees?department=Engineering&work_mode=WFH&limit=5&offset=5
+→ the next 5 matching employees (page 2 of the same filter)
+
+GET /employees?is_active=false
+→ only inactive employees
+
+GET /employees?limit=0
+→ 422 — limit must be between 1 and 100
+
+GET /employees?work_mode=REMOTE
+→ 422 — work_mode must be "WFH" or "WFO"
+```
 
 ---
 
@@ -139,6 +202,11 @@ uv run uvicorn app.main:app --host [IP_ADDRESS] --port 8000
 - Designing ORM models (`models.py`) and a database connection/session layer (`database.py`) using SQLAlchemy.
 - Refactoring `schemas.py` and `services.py` to move off in-memory storage and operate against a real database, including session-based query, commit, and rollback patterns.
 - Core working principles of SQLAlchemy: engine and session management, and how a request-scoped session is handed off and closed via a dependency.
+- Implementing case-insensitive partial search with `.ilike()` versus exact case-insensitive matching with `func.lower(...) == ...`, and when each is the right fit.
+- Performing search, filtering, counting, and pagination entirely through chained SQLAlchemy query objects, so filtering happens at the database level instead of loading all records into Python.
+- Using `Query(...)` with `ge=`/`le=` constraints to validate `limit` and `offset` at the FastAPI layer, before the request ever reaches the service layer.
+- The importance of `.order_by(Employee.id.asc())` for stable, predictable pagination across repeated requests.
+- Distinguishing `if is_active:` from `if is_active is not None:` — the former incorrectly treats an explicit `is_active=false` filter as "no filter," since `False` is falsy in Python.
 
 ### 🧩 Difficulties Faced
 
