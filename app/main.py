@@ -1,17 +1,21 @@
-from typing import List
-from fastapi import FastAPI, Path, Depends, status
+from typing import Optional, Literal
+from fastapi import FastAPI, Path, Query, Depends, status
 from sqlalchemy.orm import Session
 from app.database import engine, Base, get_db
-from app.schemas import EmployeeCreate, EmployeeResponse, EmployeeUpdate
+from app.schemas import (
+    EmployeeCreate,
+    EmployeeResponse,
+    EmployeeUpdate,
+    PaginatedEmployeeResponse
+)
 from app import services
 
-# Automatically create tables in MySQL if they do not exist
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Employee Management API",
     description="Employee record management with FastAPI, SQLAlchemy, and MySQL",
-    version="2.0.0"
+    version="3.0.0"
 )
 
 @app.get("/health", tags=["Health"])
@@ -27,13 +31,30 @@ def health_check():
 def create_employee(employee: EmployeeCreate, db: Session = Depends(get_db)):
     return services.create_employee(db, employee)
 
+# --- UPDATED FOR TASK 3 ---
 @app.get(
     "/employees",
-    response_model=List[EmployeeResponse],
+    response_model=PaginatedEmployeeResponse,
     tags=["Employees"]
 )
-def list_employees(db: Session = Depends(get_db)):
-    return services.get_all_employees(db)
+def list_employees(
+    search: Optional[str] = Query(None, description="Search employee by name (partial & case-insensitive)"),
+    department: Optional[str] = Query(None, description="Filter by department name"),
+    work_mode: Optional[Literal["WFH", "WFO"]] = Query(None, description="Filter by work mode ('WFH' or 'WFO')"),
+    is_active: Optional[bool] = Query(None, description="Filter by active status (true or false)"),
+    limit: int = Query(10, ge=1, le=100, description="Page size (1 to 100, default 10)"),
+    offset: int = Query(0, ge=0, description="Records to skip (minimum 0, default 0)"),
+    db: Session = Depends(get_db)
+):
+    return services.get_employees(
+        db=db,
+        search=search,
+        department=department,
+        work_mode=work_mode,
+        is_active=is_active,
+        limit=limit,
+        offset=offset
+    )
 
 @app.get(
     "/employees/{id}",
