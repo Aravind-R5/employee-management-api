@@ -52,8 +52,10 @@ class EmployeeBasic(BaseModel):
         from_attributes = True
 
 class WorkItemBase(BaseModel):
-    title: str = Field(..., description="Title of the work item")
-    description: Optional[str] = Field(None, description="Detailed description")
+    # Enforces maximum 200 characters to match VARCHAR(200) in database
+    title: str = Field(..., max_length=200, description="Title of the work item")
+    # Enforces maximum 500 characters to match VARCHAR(500) in database
+    description: Optional[str] = Field(None, max_length=500, description="Detailed description")
     employee_id: int = Field(..., gt=0, description="ID of assigned employee (must be > 0)")
     status: Literal["TODO", "IN_PROGRESS", "COMPLETED"] = Field(
         default="TODO",
