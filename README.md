@@ -69,6 +69,9 @@ employee-management-api/
 git clone https://github.com/Aravind-R5/employee-management-api.git
 cd employee-management-api
 
+# Switch to the task-4 branch (main does not include Task 4)
+git checkout task-4
+
 # Create virtual environment and install dependencies
 uv venv --python 3.12
 uv pip install -r requirements.txt
