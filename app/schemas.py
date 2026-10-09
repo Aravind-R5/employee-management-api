@@ -40,8 +40,17 @@ class PaginatedEmployeeResponse(BaseModel):
     offset: int = Field(..., description="Requested number of records to skip")
     items: List[EmployeeResponse] = Field(..., description="List of employee records")
 
+# --- EMPLOYEE SUMMARY SCHEMA (TASK 5) ---
 
-# --- WORK ITEM SCHEMAS (TASK 4) ---
+class WorkSummaryResponse(BaseModel):
+    employee_id: int
+    total_work_items: int
+    todo: int
+    in_progress: int
+    completed: int
+
+
+# --- WORK ITEM SCHEMAS ---
 
 class EmployeeBasic(BaseModel):
     id: int
@@ -52,15 +61,9 @@ class EmployeeBasic(BaseModel):
         from_attributes = True
 
 class WorkItemBase(BaseModel):
-    # Enforces maximum 200 characters to match VARCHAR(200) in database
     title: str = Field(..., max_length=200, description="Title of the work item")
-    # Enforces maximum 500 characters to match VARCHAR(500) in database
     description: Optional[str] = Field(None, max_length=500, description="Detailed description")
     employee_id: int = Field(..., gt=0, description="ID of assigned employee (must be > 0)")
-    status: Literal["TODO", "IN_PROGRESS", "COMPLETED"] = Field(
-        default="TODO",
-        description="Allowed: TODO, IN_PROGRESS, COMPLETED"
-    )
     priority: Literal["LOW", "MEDIUM", "HIGH"] = Field(
         default="MEDIUM",
         description="Allowed: LOW, MEDIUM, HIGH"
@@ -76,10 +79,25 @@ class WorkItemBase(BaseModel):
         return trimmed
 
 class WorkItemCreate(WorkItemBase):
-    pass
+    # Status is optional during creation and defaults to "TODO"
+    status: Optional[Literal["TODO", "IN_PROGRESS", "COMPLETED"]] = Field(
+        default="TODO",
+        description="Defaults to TODO. New work items must start as TODO."
+    )
 
 class WorkItemUpdate(WorkItemBase):
-    pass
+    # Optional so that omitting status preserves the current status in DB
+    status: Optional[Literal["TODO", "IN_PROGRESS", "COMPLETED"]] = Field(
+        default=None,
+        description="New status if changing, or omit/null to keep existing status"
+    )
+
+class WorkItemStatusUpdate(BaseModel):
+    # Required for PATCH /work-items/{id}/status. Non-null and valid literal
+    status: Literal["TODO", "IN_PROGRESS", "COMPLETED"] = Field(
+        ...,
+        description="Status must be one of: TODO, IN_PROGRESS, COMPLETED"
+    )
 
 class WorkItemResponse(BaseModel):
     id: int
