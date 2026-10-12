@@ -57,7 +57,6 @@ class WorkSummaryResponse(BaseModel):
     in_progress: int
     completed: int
 
-
 # WORK ITEM SCHEMAS
 
 # Short employee details shown inside each work item response
