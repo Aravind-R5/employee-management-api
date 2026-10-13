@@ -7,27 +7,33 @@ from app.schemas import (
     EmployeeResponse,
     EmployeeUpdate,
     PaginatedEmployeeResponse,
+    WorkSummaryResponse,
     WorkItemCreate,
     WorkItemResponse,
     WorkItemUpdate,
+    WorkItemStatusUpdate,
     PaginatedWorkItemResponse
 )
 from app import services
 
+# Creates tables in MySQL if they do not exist
 Base.metadata.create_all(bind=engine)
 
+# FastAPI application configuration
 app = FastAPI(
     title="Employee & Work Item Management API",
-    description="Employee and Work Item management with FastAPI, SQLAlchemy, and MySQL",
-    version="4.0.0"
+    description="Employee and Work Item management with state machine transitions and summary reports",
+    version="5.0.0"
 )
 
+# Health check route to verify server status
 @app.get("/health", tags=["Health"])
 def health_check():
     return {"status": "ok", "message": "Application is healthy and running"}
 
 # EMPLOYEE ENDPOINTS
 
+# Creates a new employee with unique email validation
 @app.post(
     "/employees",
     response_model=EmployeeResponse,
@@ -37,6 +43,7 @@ def health_check():
 def create_employee(employee: EmployeeCreate, db: Session = Depends(get_db)):
     return services.create_employee(db, employee)
 
+# Lists employees with optional search and filters, paginated
 @app.get(
     "/employees",
     response_model=PaginatedEmployeeResponse,
@@ -61,6 +68,7 @@ def list_employees(
         offset=offset
     )
 
+# Returns one employee by ID, or 404 if not found
 @app.get(
     "/employees/{id}",
     response_model=EmployeeResponse,
@@ -72,6 +80,7 @@ def get_employee(
 ):
     return services.get_employee_by_id(db, id)
 
+# Updates an existing employee after unique email check
 @app.put(
     "/employees/{id}",
     response_model=EmployeeResponse,
@@ -84,6 +93,7 @@ def update_employee(
 ):
     return services.update_employee(db, id, employee)
 
+# Deletes an employee and cascades deletion to their work items
 @app.delete(
     "/employees/{id}",
     status_code=status.HTTP_200_OK,
@@ -95,9 +105,23 @@ def delete_employee(
 ):
     return services.delete_employee(db, id)
 
+# TASK 5: WORK SUMMARY ROUTE
 
-# WORK ITEM ENDPOINTS (TASK 4)
+# Returns work item counts grouped by status for a given employee
+@app.get(
+    "/employees/{employee_id}/work-summary",
+    response_model=WorkSummaryResponse,
+    tags=["Employees"]
+)
+def get_employee_work_summary(
+    employee_id: int = Path(..., gt=0, description="Employee ID must be greater than 0"),
+    db: Session = Depends(get_db)
+):
+    return services.get_employee_work_summary(db, employee_id)
 
+# WORK ITEM ENDPOINTS
+
+# Creates a work item; status must default to or start with TODO
 @app.post(
     "/work-items",
     response_model=WorkItemResponse,
@@ -107,6 +131,7 @@ def delete_employee(
 def create_work_item(item: WorkItemCreate, db: Session = Depends(get_db)):
     return services.create_work_item(db, item)
 
+# Lists work items with optional search and filters, paginated
 @app.get(
     "/work-items",
     response_model=PaginatedWorkItemResponse,
@@ -131,6 +156,7 @@ def list_work_items(
         offset=offset
     )
 
+# Returns one work item by ID with assigned employee details
 @app.get(
     "/work-items/{work_item_id}",
     response_model=WorkItemResponse,
@@ -142,6 +168,22 @@ def get_work_item(
 ):
     return services.get_work_item_by_id(db, work_item_id)
 
+# TASK 5: STATUS PATCH ROUTE
+
+# Updates only work item status following TODO -> IN_PROGRESS -> COMPLETED order
+@app.patch(
+    "/work-items/{work_item_id}/status",
+    response_model=WorkItemResponse,
+    tags=["Work Items"]
+)
+def patch_work_item_status(
+    data: WorkItemStatusUpdate,
+    work_item_id: int = Path(..., gt=0, description="Work item ID must be greater than 0"),
+    db: Session = Depends(get_db)
+):
+    return services.patch_work_item_status(db, work_item_id, data)
+
+# Updates a work item; validates status transitions or preserves current status if omitted
 @app.put(
     "/work-items/{work_item_id}",
     response_model=WorkItemResponse,
@@ -154,6 +196,7 @@ def update_work_item(
 ):
     return services.update_work_item(db, work_item_id, item)
 
+# Deletes a work item by ID, returning 204 No Content
 @app.delete(
     "/work-items/{work_item_id}",
     status_code=status.HTTP_204_NO_CONTENT,
