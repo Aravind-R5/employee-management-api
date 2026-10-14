@@ -280,7 +280,7 @@ TODO  →  IN_PROGRESS  →  COMPLETED
 
 - **On creation:** `status` is optional and defaults to `TODO`. Supplying `IN_PROGRESS` or `COMPLETED` returns `400` with a clear message.
 - **`PATCH /work-items/{work_item_id}/status`:** `status` is required. A missing, `null`, or invalid value returns `422`. A missing work item returns `404`. A successful change returns the updated work item.
-- **`PUT /work-items/{work_item_id}`:** follows the same transition rules when `status` is supplied. Omitting `status` keeps the current value.
+- **`PUT /work-items/{work_item_id}`:** follows the same transition rules when `status` is supplied. Omitting the `status` field keeps the current value. Sending `"status": null` is rejected with `422 Unprocessable Entity`.
 - **Rejected updates save nothing:** if a `PUT` contains a disallowed status change, the whole update is rejected and no other field (title, priority, employee, etc.) is changed.
 - The transition check is a single shared function, used by both `PATCH` and `PUT`.
 
@@ -314,7 +314,7 @@ PATCH /work-items/1/status
 
 ### Update a work item without changing its status
 
-Leave `status` out of the body (or send `null`) and the current status is preserved:
+Leave `status` out of the request body completely and the current status is preserved (explicitly passing `"status": null` is invalid and returns `422 Unprocessable Entity`):
 
 ```
 PUT /work-items/1
@@ -505,7 +505,7 @@ GET /employees?work_mode=REMOTE
 - `status` defaults to `"TODO"` and `priority` defaults to `"MEDIUM"` when not explicitly provided.
 - Deleting an employee also deletes all of their associated work items (cascading delete), rather than leaving them unassigned.
 - `PUT /work-items/{id}` requires the full work item object (including `employee_id`), consistent with how employee updates are handled, rather than supporting partial updates.
-- On `PUT`, `"status": null` is treated the same as omitting `status`, so the current status is preserved. On `PATCH`, `null` is rejected with `422`.
+- On both `POST` and `PUT`, sending `"status": null` returns `422 Unprocessable Entity`. Only omitting the `status` key entirely defaults to `TODO` on creation or preserves the current status on update.
 - `COMPLETED` is a final status: a completed work item cannot be moved back, and resending `COMPLETED` is accepted without changes.
 - Requesting the status a work item already has returns `200 OK` and does not write to the database.
 - Work item counts in the summary reflect the current database state: deleted work items are removed records and are not counted, and a reassigned work item counts toward its new employee.
