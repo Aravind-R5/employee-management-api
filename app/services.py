@@ -312,8 +312,8 @@ def update_work_item(db: Session, work_item_id: int, data: WorkItemUpdate) -> Wo
     get_employee_by_id(db, data.employee_id)
 
     # 2. Check status change rules if status is provided in request body
-    # Checked before any field is changed, so a rejected update saves nothing
-    if data.status is not None:
+    # Only applies when status is explicitly provided (not omitted/"UNSET")
+    if data.status != "UNSET":
         validate_status_transition(item.status, data.status)
         item.status = data.status
 

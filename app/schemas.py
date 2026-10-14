@@ -1,5 +1,5 @@
 from datetime import datetime, date
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Any
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 # EMPLOYEE SCHEMAS
@@ -90,19 +90,28 @@ class WorkItemBase(BaseModel):
 
 # Request body for POST /work-items
 class WorkItemCreate(WorkItemBase):
-    # Status is optional during creation and defaults to "TODO"
-    status: Optional[Literal["TODO", "IN_PROGRESS", "COMPLETED"]] = Field(
+    # Non-optional literal: omitting the key applies default "TODO".
+    # Explicitly sending null fails literal validation and returns 422.
+    status: Literal["TODO", "IN_PROGRESS", "COMPLETED"] = Field(
         default="TODO",
-        description="Defaults to TODO. New work items must start as TODO."
+        description="Defaults to TODO. Passing null returns 422."
     )
 
 # Request body for PUT /work-items/{id}
 class WorkItemUpdate(WorkItemBase):
-    # Optional so that omitting status preserves the current status in DB
-    status: Optional[Literal["TODO", "IN_PROGRESS", "COMPLETED"]] = Field(
-        default=None,
-        description="New status if changing, or omit/null to keep existing status"
+    # Uses sentinel "UNSET" so omitting the field keeps the current status.
+    # Passing null or an invalid string is caught by the validator and returns 422.
+    status: Literal["TODO", "IN_PROGRESS", "COMPLETED", "UNSET"] = Field(
+        default="UNSET",
+        description="Omit to preserve current status. Sending null or invalid value returns 422."
     )
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def reject_explicit_null(cls, value: Any) -> Any:
+        if value is None:
+            raise ValueError("Status cannot be null. Omit the field to preserve current status.")
+        return value
 
 # Request body for PATCH /work-items/{id}/status
 class WorkItemStatusUpdate(BaseModel):
