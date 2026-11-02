@@ -21,20 +21,22 @@ This API manages employee records and the work items assigned to them — create
 
 ## ✨ Features
 
-|     |                                                                                                     |
-| --- | --------------------------------------------------------------------------------------------------- |
-| ✅  | Full CRUD for employee records                                                                      |
-| ✅  | Persistent MySQL storage via SQLAlchemy ORM                                                         |
-| ✅  | Strict Pydantic validation (email format, `WFH`/`WFO` enum, non-blank/whitespace-trimmed fields)    |
-| ✅  | Duplicate-email prevention, including on update                                                     |
-| ✅  | Search, filter, and paginate employees — all pushed down to SQLAlchemy queries, not Python          |
-| ✅  | Work item management, linked to employees via a real foreign key + SQLAlchemy relationship          |
-| ✅  | Search, filter, and paginate work items (by title, employee, status, priority)                      |
-| ✅  | Work item status workflow (`TODO → IN_PROGRESS → COMPLETED`) enforced on create, `PUT`, and `PATCH` |
-| ✅  | Per-employee work summary, with status counts calculated in the database                            |
-| ✅  | Clear `404` / `400` / `422` error handling                                                          |
-| ✅  | Auto-generated Swagger UI & ReDoc                                                                   |
-| ✅  | Environment-based configuration via `.env`                                                          |
+|     |                                                                                                                    |
+| --- | ------------------------------------------------------------------------------------------------------------------ |
+| ✅  | Full CRUD for employee records                                                                                     |
+| ✅  | Persistent MySQL storage via SQLAlchemy ORM                                                                        |
+| ✅  | Strict Pydantic validation (email format, `WFH`/`WFO` enum, non-blank/whitespace-trimmed fields)                   |
+| ✅  | Duplicate-email prevention, including on update                                                                    |
+| ✅  | Search, filter, and paginate employees — all pushed down to SQLAlchemy queries, not Python                         |
+| ✅  | Work item management, linked to employees via a real foreign key + SQLAlchemy relationship                         |
+| ✅  | Search, filter, and paginate work items (by title, employee, status, priority)                                     |
+| ✅  | Work item status workflow (`TODO → IN_PROGRESS → COMPLETED`) enforced on create, `PUT`, and `PATCH`                |
+| ✅  | Per-employee work summary, with status counts calculated in the database                                           |
+| ✅  | Task 6: two independent services (Employee on port 8001, Work Item on port 8002), each with its own database       |
+| ✅  | Task 6: the Work Item Service checks employees through an HTTPX call (5-second timeout) and returns `404` or `503` |
+| ✅  | Clear `404` / `400` / `422` error handling                                                                         |
+| ✅  | Auto-generated Swagger UI & ReDoc                                                                                  |
+| ✅  | Environment-based configuration via `.env`                                                                         |
 
 ---
 
@@ -42,12 +44,32 @@ This API manages employee records and the work items assigned to them — create
 
 ```
 employee-management-api/
-├── app/
+├── app/                         # Task 5 application (unchanged)
 │   ├── main.py        # Route definitions & request wiring
 │   ├── schemas.py      # Pydantic request/response models & validation
 │   ├── services.py     # Business logic — CRUD, status rules, work summary
 │   ├── models.py       # SQLAlchemy ORM models (DB table definitions)
 │   └── database.py     # Engine, session factory, and get_db() dependency
+├── employee_service/            # Task 6: Employee Service (port 8001)
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── main.py         # Employee routes + /health
+│   │   ├── schemas.py      # Employee request/response models
+│   │   ├── services.py     # Employee business logic
+│   │   ├── models.py       # Employee table
+│   │   └── database.py     # Connection to employee_service_db
+│   ├── requirements.txt
+│   └── .env.example
+├── work_item_service/           # Task 6: Work Item Service (port 8002)
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── main.py         # Work item routes + /health
+│   │   ├── schemas.py      # Work item request/response models
+│   │   ├── services.py     # Work item logic + HTTP call to the Employee Service
+│   │   ├── models.py       # WorkItem table (employee_id is a plain integer)
+│   │   └── database.py     # Connection to work_item_service_db
+│   ├── requirements.txt
+│   └── .env.example
 ├── requirements.txt
 ├── .env                # Local environment variables (not committed)
 ├── .env.example         # Template for required environment variables
@@ -57,6 +79,8 @@ employee-management-api/
 ---
 
 ## 🚀 Setup & Running with `uv`
+
+> This section covers the Task 5 application in `app/`, which is unchanged. For the two Task 6 services, see [Microservices (Task 6)](#-microservices-task-6).
 
 ### Prerequisites
 
@@ -71,8 +95,8 @@ employee-management-api/
 git clone https://github.com/Aravind-R5/employee-management-api.git
 cd employee-management-api
 
-# Switch to the task-5 branch (main does not include Task 5)
-git checkout task-5
+# Switch to the task-6 branch (main does not include Task 6)
+git checkout task-6
 
 # Create virtual environment and install dependencies
 uv venv --python 3.12
@@ -454,6 +478,248 @@ GET /employees?limit=0
 GET /employees?work_mode=REMOTE
 → 422 — work_mode must be "WFH" or "WFO"
 ```
+
+---
+
+## 🧩 Microservices (Task 6)
+
+Task 6 separates part of the application into two services that run independently and talk to each other through an API call. The Task 5 application in `app/` is left unchanged.
+
+```
+Client ──► Work Item Service (8002) ── GET /employees/{id} ──► Employee Service (8001)
+                   │                                                    │
+          work_item_service_db                                 employee_service_db
+```
+
+| Service               | Port   | Database               | Endpoints                                                                              |
+| --------------------- | ------ | ---------------------- | -------------------------------------------------------------------------------------- |
+| **Employee Service**  | `8001` | `employee_service_db`  | `POST /employees`, `GET /employees`, `GET /employees/{employee_id}`, `GET /health`     |
+| **Work Item Service** | `8002` | `work_item_service_db` | `POST /work-items`, `GET /work-items`, `GET /work-items/{work_item_id}`, `GET /health` |
+
+Each service has its own FastAPI application, database connection, models, schemas, service layer, and Swagger UI. Update, delete, status, and summary features are moved across in later tasks.
+
+### 1️⃣ Clone & switch to task-6
+
+```bash
+git clone https://github.com/Aravind-R5/employee-management-api.git
+cd employee-management-api
+
+# Switch to the task-6 branch (main does not include Task 6)
+git checkout task-6
+```
+
+### 2️⃣ Create the two MySQL databases
+
+Both databases can live on the same local MySQL server. Log into MySQL (CLI or MySQL Workbench) and run:
+
+```sql
+CREATE DATABASE employee_service_db;
+CREATE DATABASE work_item_service_db;
+```
+
+> Each service creates its own tables automatically on startup (`Base.metadata.create_all`), so only the empty databases are needed. Use fresh sample data — the Task 5 database `employee_db` is not deleted or migrated.
+
+### 3️⃣ Configure environment variables
+
+Each service has its own `.env.example`. Copy it to `.env` **inside that service's folder** and fill in your credentials.
+
+```bash
+cd employee_service
+cp .env.example .env        # Windows: copy .env.example .env
+cd ../work_item_service
+cp .env.example .env        # Windows: copy .env.example .env
+cd ..
+```
+
+**`employee_service/.env`**
+
+```env
+DB_USER=your_db_username
+DB_PASSWORD=your_db_password
+DB_HOST=your_db_host
+DB_PORT=your_db_port
+DB_NAME=employee_service_db
+```
+
+**`work_item_service/.env`**
+
+```env
+DB_USER=your_db_username
+DB_PASSWORD=your_db_password
+DB_HOST=your_db_host
+DB_PORT=your_db_port
+DB_NAME=work_item_service_db
+EMPLOYEE_SERVICE_URL=http://localhost:8001
+```
+
+> ⚠️ Create the `.env` file inside each service folder, not only in the repository root. A service without its own `.env` can end up reading the root one, which points to the Task 5 database. Special characters in the password (e.g. `@`) are handled by `urllib.parse.quote_plus`, as before. Never commit real `.env` files.
+
+### 4️⃣ Install dependencies & run each service
+
+Each service has its own `requirements.txt` and its own virtual environment. Open **two separate terminals**, one per service. The services can be started in any order.
+
+**Terminal 1: Employee Service (port 8001)**
+
+```bash
+cd employee_service
+uv venv --python 3.12
+uv pip install -r requirements.txt
+uv run uvicorn app.main:app --reload --port 8001
+```
+
+**Terminal 2: Work Item Service (port 8002)**
+
+```bash
+cd work_item_service
+uv venv --python 3.12
+uv pip install -r requirements.txt
+uv run uvicorn app.main:app --reload --port 8002
+```
+
+> Run each command from inside its own service folder. Both services contain a package named `app`, so starting one from the repository root would load the Task 5 application instead.
+
+### 5️⃣ Open the docs
+
+| Service           | Swagger UI                   | Health check                   |
+| ----------------- | ---------------------------- | ------------------------------ |
+| Employee Service  | `http://127.0.0.1:8001/docs` | `http://127.0.0.1:8001/health` |
+| Work Item Service | `http://127.0.0.1:8002/docs` | `http://127.0.0.1:8002/health` |
+
+### 🔄 How the services communicate
+
+Before saving a new work item, the Work Item Service calls the Employee Service with HTTPX (5-second timeout):
+
+```
+GET {EMPLOYEE_SERVICE_URL}/employees/{employee_id}
+```
+
+| Employee Service result                              | Work Item Service response                     | Work item saved? |
+| ---------------------------------------------------- | ---------------------------------------------- | ---------------- |
+| `200 OK` (employee found)                            | `201 Created`                                  | ✅ Yes           |
+| `404 Not Found`                                      | `404` with `"Employee not found"`              | ❌ No            |
+| Stopped, no connection, timeout, or unexpected error | `503 Service Unavailable` with a clear message | ❌ No            |
+
+- **No shared database relationship:** the two tables now live in different databases, so `work_items.employee_id` is a plain integer with no foreign key and no ORM relationship. Employee existence is checked through the API call instead.
+- **Separate data access:** each service reads and writes only its own database, and never imports the other service's models.
+- **Viewing keeps working:** `GET /work-items` and `GET /work-items/{work_item_id}` only read the Work Item Service's own database, so saved work items can still be viewed while the Employee Service is stopped.
+- **Configurable address:** the Employee Service URL comes from the `EMPLOYEE_SERVICE_URL` environment variable.
+
+### 📨 Sample requests & responses
+
+#### Employee Service (port 8001)
+
+```
+GET /health
+→ 200 OK
+{ "status": "ok", "service": "Employee Service", "port": 8001 }
+```
+
+```
+POST /employees
+{
+  "name": "Asha Rao",
+  "email": "asha@corp.com",
+  "department": "Engineering",
+  "primary_skill": "Python",
+  "location": "Chennai",
+  "work_mode": "WFH"
+}
+```
+
+```
+201 Created
+{
+  "name": "Asha Rao",
+  "email": "asha@corp.com",
+  "department": "Engineering",
+  "primary_skill": "Python",
+  "location": "Chennai",
+  "work_mode": "WFH",
+  "id": 1,
+  "is_active": true,
+  "created_at": "2026-10-29T10:15:00"
+}
+```
+
+```
+GET /employees/1   → 200 OK, the employee above
+GET /employees/99  → 404 Not Found
+{ "detail": "Employee with ID 99 not found." }
+```
+
+```
+POST /employees   (an email that already exists)
+→ 400 Bad Request
+{ "detail": "Employee with email 'asha@corp.com' already exists." }
+```
+
+#### Work Item Service (port 8002)
+
+```
+POST /work-items
+{
+  "title": "Prepare weekly status report",
+  "description": "Compile this week's task progress",
+  "employee_id": 1,
+  "priority": "HIGH",
+  "due_date": "2026-11-20"
+}
+```
+
+```
+201 Created
+{
+  "id": 1,
+  "title": "Prepare weekly status report",
+  "description": "Compile this week's task progress",
+  "employee_id": 1,
+  "status": "TODO",
+  "priority": "HIGH",
+  "due_date": "2026-11-20",
+  "created_at": "2026-10-29T10:20:00"
+}
+```
+
+The response has `employee_id` and the work item's own details. The nested `assigned_employee` object is not part of Task 6.
+
+```
+GET /work-items?employee_id=1&limit=10&offset=0
+→ 200 OK
+{
+  "total": 1,
+  "limit": 10,
+  "offset": 0,
+  "items": [{ "id": 1, "title": "Prepare weekly status report", "employee_id": 1, "status": "TODO", "...": "..." }]
+}
+```
+
+```
+GET /work-items/99
+→ 404 Not Found
+{ "detail": "Work item with ID 99 not found." }
+```
+
+#### Error cases when creating a work item
+
+| Case                                                      | Response                                                                 | Saved? |
+| --------------------------------------------------------- | ------------------------------------------------------------------------ | ------ |
+| `employee_id` does not exist in the Employee Service      | `404` — `{ "detail": "Employee not found" }`                             | ❌     |
+| Employee Service stopped or slower than 5 seconds         | `503` — `{ "detail": "Employee Service is unavailable or timed out." }`  | ❌     |
+| Employee Service returns an unexpected error              | `503` — `{ "detail": "Employee Service returned an unexpected error." }` | ❌     |
+| `status` is `IN_PROGRESS` or `COMPLETED`                  | `400` — `{ "detail": "New work items must start with status 'TODO'." }`  | ❌     |
+| `status` is `null` or not one of the three allowed values | `422 Unprocessable Entity`                                               | ❌     |
+| `title` is blank or whitespace-only                       | `422 Unprocessable Entity`                                               | ❌     |
+| `employee_id` is zero or negative                         | `422 Unprocessable Entity`                                               | ❌     |
+
+#### Suggested test order
+
+1. Start both services and check `/health` on ports 8001 and 8002.
+2. Create an employee in the Employee Service, then create a work item for that employee (`201`).
+3. Create a work item for an employee ID that doesn't exist (`404`, nothing saved).
+4. Stop the Employee Service and create a work item (`503`, nothing saved).
+5. With the Employee Service still stopped, open `GET /work-items` (`200`, saved items still visible).
+6. Restart the Employee Service and create a work item again (`201`).
+7. Restart both services and confirm the data is still there.
 
 ---
 
